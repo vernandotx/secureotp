@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verifikasi OTP WhatsApp</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        /* Efek blur untuk kode OTP sebelum pembayaran disetujui */
+        .blur-otp {
+            filter: blur(8px);
+            user-select: none;
+            pointer-events: none;
+        }
+        /* Transisi halus */
+        .transition-all-custom {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col justify-between text-slate-800">
+
+    <!-- Header / Navbar -->
+    <header class="bg-white border-b border-slate-200 py-4 px-6 sticky top-0 z-10 shadow-sm">
+        <div class="max-w-4xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <div class="bg-blue-600 text-white p-2 rounded-lg">
+                    <i class="fa-solid fa-key text-lg"></i>
+                </div>
+                <span class="font-bold text-xl tracking-tight text-slate-900">Secure<span class="text-blue-600">OTP</span></span>
+            </div>
+            <span class="text-xs bg-emerald-100 text-emerald-800 font-semibold px-2.5 py-1 rounded-full flex items-center gap-1">
+                <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span>
+                Sistem Terverifikasi
+            </span>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow flex items-center justify-center p-4 my-6">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-xl border border-slate-100 overflow-hidden transition-all-custom">
+            
+            <!-- Indikator Progres Langkah -->
+            <div class="bg-slate-50 border-b border-slate-100 p-4 flex justify-around items-center text-xs font-semibold text-slate-400">
+                <div id="step-indicator-1" class="flex items-center gap-1.5 text-blue-600">
+                    <span class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">1</span>
+                    WhatsApp
+                </div>
+                <div class="h-[1px] bg-slate-200 flex-grow mx-2"></div>
+                <div id="step-indicator-2" class="flex items-center gap-1.5">
+                    <span id="badge-2" class="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px]">2</span>
+                    Pembayaran
+                </div>
+                <div class="h-[1px] bg-slate-200 flex-grow mx-2"></div>
+                <div id="step-indicator-3" class="flex items-center gap-1.5">
+                    <span id="badge-3" class="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px]">3</span>
+                    Selesai
+                </div>
+            </div>
+
+            <!-- CARD BODY -->
+            <div class="p-6">
+                
+                <!-- LANGKAH 1: INPUT WHATSAPP -->
+                <div id="step-whatsapp" class="space-y-6">
+                    <div class="text-center">
+                        <h2 class="text-xl font-bold text-slate-900">Pendaftaran OTP</h2>
+                        <p class="text-sm text-slate-500 mt-1">Masukkan nomor WhatsApp aktif Anda untuk mendaftarkan permintaan kode OTP</p>
+                    </div>
+
+                    
+
+                    <div class="space-y-2">
+                        <label for="whatsapp-input" class="block text-sm font-semibold text-slate-700">Nomor WhatsApp</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 font-medium">
+                                +62
+                            </span>
+                            <input type="number" id="whatsapp-input" placeholder="85xxxxxxxxxx" 
+                                class="block w-full pl-12 pr-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 placeholder-slate-400 font-medium transition duration-200 focus:outline-none" />
+                        </div>
+                        <p class="text-[11px] text-slate-400"><i class="fa-solid fa-circle-info mr-1"></i>Masukkan nomor tanpa angka 0 di depan (Contoh: 85758306037)</p>
+                    </div>
+
+                    <button onclick="prosesWhatsApp()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-blue-200 transition duration-200 flex items-center justify-center gap-2">
+                        <span>Lanjutkan</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                </div>
+
+                <!-- LANGKAH 2 & 3: PEMBAYARAN & TAMPILAN OTP (Awalnya Tersembunyi) -->
+                <div id="step-otp-payment" class="hidden space-y-6">
+                    
+                    <!-- Notifikasi Status Pembayaran Terkunci -->
+                    <div id="status-pembayaran-alert" class="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start gap-3">
+                        <div class="text-amber-500 mt-0.5">
+                            <i class="fa-solid fa-circle-exclamation text-lg animate-pulse"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-bold text-amber-900 text-sm">Menunggu Pembayaran</h4>
+                            <p class="text-xs text-amber-700 mt-0.5">Kode OTP di bawah masih terkunci (ter-blur). Silakan lakukan pembayaran sebesar <strong>Rp 125.000</strong> dan konfirmasi ke admin Facebook untuk membuka kunci.</p>
+                        </div>
+                    </div>
+
+                    <!-- Kotak Tampilan Kode OTP -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 text-center relative overflow-hidden">
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-3">Kode OTP WhatsApp Anda</span>
+                        
+                        <!-- OTP Grid (Ter-blur secara default) -->
+                        <div class="flex justify-center gap-2.5 my-4">
+                            <div class="w-10 h-14 bg-white border border-slate-300 rounded-xl flex items-center justify-center font-extrabold text-2xl text-slate-800 shadow-sm">
+                                <span class="otp-digit blur-otp">9</span>
+                            </div>
+                            <div class="w-10 h-14 bg-white border border-slate-300 rounded-xl flex items-center justify-center font-extrabold text-2xl text-slate-800 shadow-sm">
+                                <span class="otp-digit blur-otp">2</span>
+                            </div>
+                            <div class="w-10 h-14 bg-white border border-slate-300 rounded-xl flex items-center justify-center font-extrabold text-2xl text-slate-800 shadow-sm">
+                                <span class="otp-digit blur-otp">5</span>
+                            </div>
+                            <div class="w-10 h-14 bg-white border border-slate-300 rounded-xl flex items-center justify-center font-extrabold text-2xl text-slate-800 shadow-sm">
+                                <span class="otp-digit blur-otp">8</span>
+                            </div>
+                            <div class="w-10 h-14 bg-white border border-slate-300 rounded-xl flex items-center justify-center font-extrabold text-2xl text-slate-800 shadow-sm">
+                                <span class="otp-digit blur-otp">1</span>
+                            </div>
+                            <div class="w-10 h-14 bg-white border border-slate-300 rounded-xl flex items-center justify-center font-extrabold text-2xl text-slate-800 shadow-sm">
+                                <span class="otp-digit blur-otp">7</span>
+                            </div>
+                        </div>
+
+                        <!-- Status Kunci -->
+                        <div id="otp-lock-status" class="flex items-center justify-center gap-1.5 text-xs text-slate-500 font-medium">
+                            <i class="fa-solid fa-lock text-amber-500"></i>
+                            <span>Kode Terkunci (Selesaikan Pembayaran)</span>
+                        </div>
+                    </div>
+
+                    <!-- BAGIAN INFORMASI REKENING & METODE PEMBAYARAN -->
+                    <div id="payment-section" class="border border-slate-100 rounded-2xl p-5 space-y-4 shadow-sm bg-gradient-to-b from-blue-50/20 to-white">
+                        <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                            <span class="font-bold text-slate-800 text-sm">Metode Pembayaran</span>
+                            <!-- Logo DANA SVG -->
+                            <svg class="h-6" viewBox="0 0 1200 361" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M129.8 1.4C58.3 1.4 0 59.8 0 131.2v98.4c0 71.5 58.3 129.8 129.8 129.8h940.3c71.5 0 129.8-58.3 129.8-129.8v-98.4c0-71.5-58.3-129.8-129.8-129.8H129.8z" fill="#008fdf"/>
+                                <path d="M255.4 122.1c0-29-21.2-51.5-51.7-51.5h-59.5v136.2h63.2c27.1 0 48-23.7 48-51.5v-33.2zm-46.7 34c0 9.8-6.1 16.6-16.1 16.6h-14.7v-35.3h14.7c10 0 16.1 6.8 16.1 16.6v2.1zm84.4-85.5l-47.5 136.2h32.2l8.8-27.1h41.4l8.8 27.1h32.1L321.1 70.6h-28zm7 81.3l11.8-37.1 11.8 37.1h-23.6zm198.8-81.3h-34.9l-43.2 68.3V70.6h-30.8v136.2h30.8V139l43.2 67.8h34.9l-55.9-83.3 55.9-52.9zm130.4 0l-47.5 136.2h32.2l8.8-27.1h41.4l8.8 27.1h32.1L623.3 70.6h-28zm7 81.3l11.8-37.1 11.8 37.1H603zm-420.2-11.4h-31.5v-35.3h31.5c10 0 16.1 6.8 16.1 16.6v2.1c0 9.8-6.1 16.6-16.1 16.6z" fill="#fff"/>
+                            </svg>
+                        </div>
+
+                        <!-- Nominal Pembayaran Ringkas -->
+                        <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 flex justify-between items-center">
+                            <div>
+                                <span class="text-[10px] text-blue-500 font-semibold block uppercase">Jumlah Transfer</span>
+                                <span class="font-extrabold text-xl text-blue-950">Rp 125.000</span>
+                            </div>
+                            <button onclick="salinNominal()" class="bg-white hover:bg-slate-50 text-blue-600 font-semibold px-2.5 py-1.5 rounded-lg border border-slate-300 text-xs flex items-center gap-1 transition-all">
+                                <i class="fa-solid fa-copy"></i>
+                                <span id="btn-salin-nominal-text">Salin</span>
+                            </button>
+                        </div>
+
+                        <!-- Info Nomor DANA -->
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center text-xs text-slate-500">
+                                <span>Nomor Akun DANA Tujuan:</span>
+                                <span class="bg-blue-50 text-blue-700 font-bold px-2 py-0.5 rounded">Aktif</span>
+                            </div>
+                            <div class="flex items-center justify-between bg-slate-100 p-3 rounded-xl border border-slate-200">
+                                <span id="nomor-dana" class="font-mono font-bold text-lg text-slate-900 tracking-wider">085758306037</span>
+                                <button onclick="salinNomor()" class="bg-white hover:bg-slate-50 text-blue-600 font-semibold px-3 py-1.5 rounded-lg border border-slate-300 text-xs flex items-center gap-1 transition-all">
+                                    <i class="fa-solid fa-copy"></i>
+                                    <span id="btn-salin-text">Salin</span>
+                                </button>
+                            </div>
+                            <p class="text-[11px] text-slate-500 text-center italic">Atas Nama: <strong class="text-slate-700">ADMIN SECURE OTP</strong></p>
+                        </div>
+
+                        <!-- Petunjuk Transfer -->
+                        <div class="bg-blue-50/50 border border-blue-100 rounded-xl p-3 text-xs text-slate-700 space-y-1.5">
+                            <div class="flex items-start gap-1.5">
+                                <span class="bg-blue-200 text-blue-800 w-4 h-4 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 mt-0.5">1</span>
+                                <span>Kirim saldo sebesar <strong>Rp 125.000</strong> menggunakan aplikasi Bank Anda ke nomor tujuan di atas.</span>
+                            </div>
+                            <div class="flex items-start gap-1.5">
+                                <span class="bg-blue-200 text-blue-800 w-4 h-4 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 mt-0.5">2</span>
+                                <span>Simpan/Screenshot bukti transfer setelah transaksi sukses dilakukan.</span>
+                            </div>
+                            <div class="flex items-start gap-1.5">
+                                <span class="bg-blue-200 text-blue-800 w-4 h-4 rounded-full flex items-center justify-center font-bold text-[9px] shrink-0 mt-0.5">3</span>
+                                <span>Klik tombol <strong>Konfirmasi Pembayaran</strong> di bawah untuk mengirim bukti transfer sebesar Rp 125.000 ke admin Facebook.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- TOMBOL AKSI UTAMA -->
+                    <div class="space-y-3">
+                        <a href="https://www.facebook.com/dion.wandepe" target="https://www.facebook.com/dion.wandepe" onclick="kirimKonfirmasi()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-blue-200 transition duration-200 flex items-center justify-center gap-2">
+                            <i class="fa-brands fa-facebook-f text-lg"></i>
+                            <span>Konfirmasi Pembayaran</span>
+                        </a>
+
+                        <button onclick="kembaliKeWhatsapp()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium py-2 px-4 rounded-xl text-xs transition duration-200">
+                            <i class="fa-solid fa-arrow-left mr-1"></i> Ganti Nomor WhatsApp
+                        </button>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 px-6 text-center text-xs text-slate-400">
+        <div class="max-w-4xl mx-auto space-y-1">
+            <p>&copy; 2026 SecureOTP System. All Rights Reserved.</p>
+            <p class="flex items-center justify-center gap-1">
+                <i class="fa-solid fa-shield-halved text-emerald-500"></i> Koneksi SSL Terenkripsi 256-bit
+            </p>
+        </div>
+    </footer>
+
+    <!-- WARNING MODAL (Kustom Dialog) -->
+    <div id="warning-modal" class="hidden fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 transform scale-95 transition-transform duration-300">
+            <div class="text-center space-y-4">
+                <div class="w-16 h-16 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto text-2xl">
+                    <i class="fa-solid fa-triangle-exclamation animate-bounce"></i>
+                </div>
+                <div class="space-y-1">
+                    <h3 class="font-extrabold text-slate-900 text-lg">Peringatan Penting!</h3>
+                    <p id="warning-modal-message" class="text-sm text-slate-500">Nomor WhatsApp wajib diisi sebelum melanjutkan!</p>
+                </div>
+                <button onclick="tutupModal()" class="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2.5 px-4 rounded-xl transition duration-200">
+                    Saya Mengerti
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- COPY TOAST NOTIFICATION -->
+    <div id="copy-toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900 text-white text-xs px-4 py-2.5 rounded-xl shadow-xl z-50 flex items-center gap-2 transition-all">
+        <i class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toast-message">Berhasil disalin!</span>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        let userWhatsApp = "";
+
+        // Validasi dan pemrosesan Input WhatsApp
+        function prosesWhatsApp() {
+            const inputField = document.getElementById('whatsapp-input');
+            const waNumber = inputField.value.trim();
+
+            if (!waNumber) {
+                tampilkanPeringatan("Anda wajib memasukkan nomor WhatsApp aktif sebelum melanjutkan membuat kode OTP!");
+                return;
+            }
+
+            if (waNumber.length < 8) {
+                tampilkanPeringatan("Format nomor WhatsApp tidak valid. Silakan masukkan nomor yang benar!");
+                return;
+            }
+
+            // Simpan nomor dan pindah langkah
+            userWhatsApp = "62" + waNumber;
+            
+            // Perbarui indikator langkah di atas
+            document.getElementById('step-indicator-1').classList.remove('text-blue-600');
+            document.getElementById('step-indicator-1').classList.add('text-emerald-600');
+            document.getElementById('step-indicator-1').innerHTML = `<span class="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px]"><i class="fa-solid fa-check"></i></span> WhatsApp`;
+            
+            document.getElementById('step-indicator-2').classList.add('text-blue-600');
+            const badge2 = document.getElementById('badge-2');
+            badge2.classList.remove('bg-slate-200', 'text-slate-600');
+            badge2.classList.add('bg-blue-600', 'text-white');
+
+            // Ganti tampilan kontainer
+            document.getElementById('step-whatsapp').classList.add('hidden');
+            document.getElementById('step-otp-payment').classList.remove('hidden');
+        }
+
+        // Kembali ke langkah 1
+        function kembaliKeWhatsapp() {
+            // Balikkan UI Indikator
+            document.getElementById('step-indicator-1').classList.add('text-blue-600');
+            document.getElementById('step-indicator-1').classList.remove('text-emerald-600');
+            document.getElementById('step-indicator-1').innerHTML = `<span class="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">1</span> WhatsApp`;
+
+            document.getElementById('step-indicator-2').classList.remove('text-blue-600');
+            const badge2 = document.getElementById('badge-2');
+            badge2.classList.add('bg-slate-200', 'text-slate-600');
+            badge2.classList.remove('bg-blue-600', 'text-white');
+
+            // Balikkan kontainer tampilan
+            document.getElementById('step-whatsapp').classList.remove('hidden');
+            document.getElementById('step-otp-payment').classList.add('hidden');
+        }
+
+        // Tampilkan Custom Modal Warning
+        function tampilkanPeringatan(pesan) {
+            const modal = document.getElementById('warning-modal');
+            document.getElementById('warning-modal-message').innerText = pesan;
+            modal.classList.remove('hidden');
+        }
+
+        // Tutup Custom Modal
+        function tutupModal() {
+            const modal = document.getElementById('warning-modal');
+            modal.classList.add('hidden');
+        }
+
+        // Fungsi Salin Nominal Tagihan
+        function salinNominal() {
+            salinTeksPapanKlip("125000", "Nominal Rp 125.000 berhasil disalin!", "btn-salin-nominal-text");
+        }
+
+        // Fungsi Salin Nomor DANA
+        function salinNomor() {
+            salinTeksPapanKlip("085758306037", "Nomor DANA berhasil disalin!", "btn-salin-text");
+        }
+
+        // Utilitas Salin Papan Klip universal
+        function salinTeksPapanKlip(teks, pesanSukses, buttonId) {
+            const tempInput = document.createElement("input");
+            tempInput.value = teks;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            tempInput.setSelectionRange(0, 99999);
+
+            try {
+                document.execCommand("copy");
+                
+                // Tampilkan Toast Notifikasi Sukses
+                const toast = document.getElementById('copy-toast');
+                const toastMsg = document.getElementById('toast-message');
+                toastMsg.innerText = pesanSukses;
+                toast.classList.remove('hidden');
+                
+                const btnText = document.getElementById(buttonId);
+                btnText.innerText = "Tersalin!";
+                
+                setTimeout(() => {
+                    toast.classList.add('hidden');
+                    btnText.innerText = "Salin";
+                }, 2000);
+
+            } catch (err) {
+                console.error("Gagal menyalin text: ", err);
+            }
+            
+            document.body.removeChild(tempInput);
+        }
+
+        // Persiapan Konfirmasi Pembayaran via Facebook Link
+        function kirimKonfirmasi() {
+            // Membuat format pesan otomatis untuk dikirim pengguna ke admin dengan detail nominal
+            const formatPesan = `Halo Admin, saya ingin konfirmasi pembayaran DANA sebesar Rp 125.000 untuk OTP WhatsApp +${userWhatsApp}. Mohon verifikasi transfer saya. Terima kasih!`;
+            
+            // Menyalin teks pesan secara otomatis ke papan klip sebelum berpindah ke Facebook
+            const tempInput = document.createElement("textarea");
+            tempInput.value = formatPesan;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+
+            // Buka dialog konfirmasi penjelasan langkah selanjutnya
+            tampilkanPeringatan("Pesan konfirmasi otomatis telah disalin ke clipboard! Silakan kirimkan pesan tersebut & lampirkan screenshot foto transfer Rp 125.000 Anda ke admin di Facebook.");
+        }
+    </script>
+</body>
+</html>
